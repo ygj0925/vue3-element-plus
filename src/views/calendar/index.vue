@@ -18,9 +18,13 @@
           </button>
         </div>
         <div class="date-nav">
-          <button class="nav-btn" @click="navigatePrev">&lt;</button>
+          <button class="nav-btn" @click="navigatePrev">
+            <el-icon><ArrowLeft /></el-icon>
+          </button>
           <span class="date-range">{{ dateRangeText }}</span>
-          <button class="nav-btn" @click="navigateNext">&gt;</button>
+          <button class="nav-btn" @click="navigateNext">
+            <el-icon><ArrowRight /></el-icon>
+          </button>
         </div>
         <button class="today-btn" @click="goToday">今天</button>
       </div>
@@ -157,6 +161,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 
 interface Task {
   id: number
@@ -572,11 +577,16 @@ function deleteTask() {
   font-size: 13px;
   cursor: pointer;
   border-radius: 4px;
-  transition: background 0.2s;
+  opacity: 0;
+  transition: all 0.2s;
 
   &:hover {
     background: #f5f7fa;
   }
+}
+
+.week-day-col:hover .add-task-btn {
+  opacity: 1;
 }
 
 // Month view
