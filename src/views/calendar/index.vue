@@ -54,13 +54,13 @@
               v-for="task in getTasksForDate(day.dateStr)"
               :key="task.id"
               class="task-item"
-              @click="editTask(task)"
+              @click="openPlanDialog(day.dateStr)"
             >
               <span class="task-dot">·</span>
               <span class="task-name">{{ task.name }}</span>
             </div>
           </div>
-          <div class="add-task-btn" @click="openAddDialog(day.dateStr)">
+          <div class="add-task-btn" @click="openPlanDialog(day.dateStr)">
             + 添加任务
           </div>
         </div>
@@ -94,7 +94,7 @@
                 v-for="task in getTasksForDate(day.dateStr).slice(0, 3)"
                 :key="task.id"
                 class="task-tag"
-                @click="editTask(task)"
+                @click="openPlanDialog(day.dateStr)"
               >
                 {{ task.name }}
               </div>
@@ -107,7 +107,7 @@
             </div>
             <div
               class="month-add-btn"
-              @click="openAddDialog(day.dateStr)"
+              @click="openPlanDialog(day.dateStr)"
             >
               +
             </div>
@@ -116,75 +116,35 @@
       </div>
     </div>
 
-    <el-dialog
-      v-model="dialogVisible"
-      :title="isEditing ? '编辑任务' : '添加任务'"
-      width="420px"
-      destroy-on-close
-    >
-      <el-form :model="taskForm" label-width="80px">
-        <el-form-item label="任务名称">
-          <el-input v-model="taskForm.name" placeholder="请输入任务名称" />
-        </el-form-item>
-        <el-form-item label="任务日期">
-          <el-date-picker
-            v-model="taskForm.date"
-            type="date"
-            placeholder="选择日期"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="任务描述">
-          <el-input
-            v-model="taskForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入任务描述（选填）"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button v-if="isEditing" type="danger" @click="deleteTask" style="margin-right: auto">
-            删除
-          </el-button>
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="saveTask">确定</el-button>
-        </div>
-      </template>
-    </el-dialog>
+    <TaskPlanDialog
+      v-model="planDialogVisible"
+      :date="selectedDate"
+      :tasks="tasks"
+      @update:tasks="onTasksUpdate"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
-
-interface Task {
-  id: number
-  name: string
-  date: string
-  description: string
-}
+import type { Task } from './types'
+import TaskPlanDialog from './components/TaskPlanDialog.vue'
 
 const viewMode = ref<'week' | 'month'>('week')
 const currentDate = ref(new Date())
-const dialogVisible = ref(false)
-const isEditing = ref(false)
-const editingTaskId = ref<number | null>(null)
+const planDialogVisible = ref(false)
+const selectedDate = ref('')
 
-const taskForm = ref({
-  name: '',
-  date: '',
-  description: '',
-})
-
-let nextId = 2
 const tasks = ref<Task[]>([
-  { id: 1, name: '平面设计', date: formatDate(new Date()), description: '' },
+  {
+    id: 1,
+    name: '平面设计',
+    date: formatDate(new Date()),
+    description: '',
+    collaborators: [],
+    taskType: 'todo',
+  },
 ])
 
 const weekLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -309,54 +269,13 @@ function getTasksForDate(dateStr: string): Task[] {
   return tasks.value.filter((t) => t.date === dateStr)
 }
 
-function openAddDialog(dateStr: string) {
-  isEditing.value = false
-  editingTaskId.value = null
-  taskForm.value = { name: '', date: dateStr, description: '' }
-  dialogVisible.value = true
+function openPlanDialog(dateStr: string) {
+  selectedDate.value = dateStr
+  planDialogVisible.value = true
 }
 
-function editTask(task: Task) {
-  isEditing.value = true
-  editingTaskId.value = task.id
-  taskForm.value = { name: task.name, date: task.date, description: task.description }
-  dialogVisible.value = true
-}
-
-function saveTask() {
-  if (!taskForm.value.name.trim()) {
-    ElMessage.warning('请输入任务名称')
-    return
-  }
-  if (!taskForm.value.date) {
-    ElMessage.warning('请选择任务日期')
-    return
-  }
-
-  if (isEditing.value && editingTaskId.value !== null) {
-    const idx = tasks.value.findIndex((t) => t.id === editingTaskId.value)
-    if (idx !== -1) {
-      tasks.value[idx] = { ...tasks.value[idx], ...taskForm.value }
-    }
-    ElMessage.success('任务已更新')
-  } else {
-    tasks.value.push({
-      id: nextId++,
-      name: taskForm.value.name,
-      date: taskForm.value.date,
-      description: taskForm.value.description,
-    })
-    ElMessage.success('任务已添加')
-  }
-  dialogVisible.value = false
-}
-
-function deleteTask() {
-  if (editingTaskId.value !== null) {
-    tasks.value = tasks.value.filter((t) => t.id !== editingTaskId.value)
-    ElMessage.success('任务已删除')
-    dialogVisible.value = false
-  }
+function onTasksUpdate(updatedTasks: Task[]) {
+  tasks.value = updatedTasks
 }
 </script>
 
@@ -708,11 +627,5 @@ function deleteTask() {
   font-size: 12px;
   color: #909399;
   padding: 2px 0;
-}
-
-// Dialog footer
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>
