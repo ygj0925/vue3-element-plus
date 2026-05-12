@@ -48,8 +48,10 @@
         class="task-input"
       />
       <div class="task-input-actions">
-        <span class="action-btn" @click="showDeadlinePicker = !showDeadlinePicker">
-          <el-icon><Calendar /></el-icon> 设置截止时间
+        <span class="action-btn" @click="toggleDeadlinePicker">
+          <el-icon><Calendar /></el-icon>
+          <template v-if="newTaskDeadline">{{ newTaskDeadline }}</template>
+          <template v-else>设置截止时间</template>
         </span>
         <span class="action-btn" @click="openReminder">
           <el-icon><Bell /></el-icon> 提醒
@@ -72,15 +74,73 @@
         </el-button>
       </div>
       <div v-if="showDeadlinePicker" class="deadline-picker-wrapper">
-        <el-date-picker
-          v-model="newTaskDeadline"
-          type="datetime"
-          placeholder="选择截止时间"
-          format="YYYY-MM-DD HH:mm"
-          value-format="YYYY-MM-DD HH:mm"
-          size="small"
-          :teleported="false"
-        />
+        <div class="deadline-panel">
+          <div class="deadline-panel-header">
+            <div class="deadline-date-input" @click="deadlineMode = 'date'">
+              {{ deadlineDateDisplay || '选择日期' }}
+            </div>
+            <div class="deadline-time-input" @click="deadlineMode = 'time'">
+              {{ deadlineTimeDisplay || '选择时间' }}
+            </div>
+          </div>
+          <div v-if="deadlineMode === 'date'" class="deadline-calendar">
+            <div class="calendar-nav">
+              <span class="nav-btn" @click="changeYear(-1)">&lt;&lt;</span>
+              <span class="nav-btn" @click="changeMonth(-1)">&lt;</span>
+              <span class="calendar-title">{{ calendarYear }}年{{ calendarMonth }}月</span>
+              <span class="nav-btn" @click="changeMonth(1)">&gt;</span>
+              <span class="nav-btn" @click="changeYear(1)">&gt;&gt;</span>
+            </div>
+            <div class="calendar-weekdays">
+              <span v-for="d in weekDays" :key="d">{{ d }}</span>
+            </div>
+            <div class="calendar-days">
+              <span
+                v-for="(day, idx) in calendarDays"
+                :key="idx"
+                class="calendar-day"
+                :class="{
+                  'other-month': !day.currentMonth,
+                  'is-today': day.isToday,
+                  'is-selected': day.isSelected,
+                }"
+                @click="selectDate(day)"
+              >{{ day.day }}</span>
+            </div>
+          </div>
+          <div v-else class="deadline-time-panel">
+            <div class="time-columns">
+              <div class="time-column">
+                <div class="time-column-title">时</div>
+                <div class="time-scroll">
+                  <div
+                    v-for="h in 24"
+                    :key="h - 1"
+                    class="time-cell"
+                    :class="{ active: selectedHour === h - 1 }"
+                    @click="selectedHour = h - 1"
+                  >{{ String(h - 1).padStart(2, '0') }}</div>
+                </div>
+              </div>
+              <div class="time-column">
+                <div class="time-column-title">分</div>
+                <div class="time-scroll">
+                  <div
+                    v-for="m in 60"
+                    :key="m - 1"
+                    class="time-cell"
+                    :class="{ active: selectedMinute === m - 1 }"
+                    @click="selectedMinute = m - 1"
+                  >{{ String(m - 1).padStart(2, '0') }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="deadline-panel-footer">
+            <el-button size="small" @click="setNow">此刻</el-button>
+            <el-button type="primary" size="small" @click="confirmDeadline">确定</el-button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -182,6 +242,118 @@ const newTaskDeadline = ref('')
 const newTaskCollaborators = ref<Collaborator[]>([])
 const currentReminder = ref<Reminder>({ type: 'before_start', value: 1, unit: 'minute' })
 const showDeadlinePicker = ref(false)
+const deadlineMode = ref<'date' | 'time'>('date')
+const calendarYear = ref(new Date().getFullYear())
+const calendarMonth = ref(new Date().getMonth() + 1)
+const selectedDate2 = ref<{ year: number; month: number; day: number } | null>(null)
+const selectedHour = ref(0)
+const selectedMinute = ref(0)
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+
+const deadlineDateDisplay = computed(() => {
+  if (!selectedDate2.value) return ''
+  const { year, month, day } = selectedDate2.value
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+})
+
+const deadlineTimeDisplay = computed(() => {
+  if (!selectedDate2.value) return ''
+  return `${String(selectedHour.value).padStart(2, '0')}:${String(selectedMinute.value).padStart(2, '0')}`
+})
+
+const calendarDays = computed(() => {
+  const year = calendarYear.value
+  const month = calendarMonth.value
+  const firstDay = new Date(year, month - 1, 1).getDay()
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const daysInPrevMonth = new Date(year, month - 1, 0).getDate()
+  const today = new Date()
+  const days: Array<{ day: number; currentMonth: boolean; isToday: boolean; isSelected: boolean; year: number; month: number }> = []
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = daysInPrevMonth - i
+    const m = month === 1 ? 12 : month - 1
+    const y = month === 1 ? year - 1 : year
+    days.push({ day: d, currentMonth: false, isToday: false, isSelected: false, year: y, month: m })
+  }
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const isToday = today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === i
+    const isSelected = selectedDate2.value?.year === year && selectedDate2.value?.month === month && selectedDate2.value?.day === i
+    days.push({ day: i, currentMonth: true, isToday, isSelected, year, month })
+  }
+
+  const remaining = 42 - days.length
+  for (let i = 1; i <= remaining; i++) {
+    const m = month === 12 ? 1 : month + 1
+    const y = month === 12 ? year + 1 : year
+    days.push({ day: i, currentMonth: false, isToday: false, isSelected: false, year: y, month: m })
+  }
+
+  return days
+})
+
+function toggleDeadlinePicker() {
+  showDeadlinePicker.value = !showDeadlinePicker.value
+  if (showDeadlinePicker.value) {
+    deadlineMode.value = 'date'
+    if (newTaskDeadline.value) {
+      const parts = newTaskDeadline.value.split(' ')
+      const [y, m, d] = parts[0].split('-').map(Number)
+      const [h, min] = parts[1].split(':').map(Number)
+      calendarYear.value = y
+      calendarMonth.value = m
+      selectedDate2.value = { year: y, month: m, day: d }
+      selectedHour.value = h
+      selectedMinute.value = min
+    } else {
+      const now = new Date()
+      calendarYear.value = now.getFullYear()
+      calendarMonth.value = now.getMonth() + 1
+      selectedDate2.value = null
+      selectedHour.value = now.getHours()
+      selectedMinute.value = now.getMinutes()
+    }
+  }
+}
+
+function changeYear(delta: number) {
+  calendarYear.value += delta
+}
+
+function changeMonth(delta: number) {
+  calendarMonth.value += delta
+  if (calendarMonth.value > 12) {
+    calendarMonth.value = 1
+    calendarYear.value++
+  } else if (calendarMonth.value < 1) {
+    calendarMonth.value = 12
+    calendarYear.value--
+  }
+}
+
+function selectDate(day: { day: number; year: number; month: number }) {
+  selectedDate2.value = { year: day.year, month: day.month, day: day.day }
+  calendarYear.value = day.year
+  calendarMonth.value = day.month
+}
+
+function setNow() {
+  const now = new Date()
+  selectedDate2.value = { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }
+  selectedHour.value = now.getHours()
+  selectedMinute.value = now.getMinutes()
+  calendarYear.value = now.getFullYear()
+  calendarMonth.value = now.getMonth() + 1
+}
+
+function confirmDeadline() {
+  if (selectedDate2.value) {
+    const { year, month, day } = selectedDate2.value
+    newTaskDeadline.value = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(selectedHour.value).padStart(2, '0')}:${String(selectedMinute.value).padStart(2, '0')}`
+  }
+  showDeadlinePicker.value = false
+}
 const reminderVisible = ref(false)
 const memberSelectVisible = ref(false)
 const taskInputRef = ref()
@@ -409,6 +581,176 @@ function handleConfirm() {
 .deadline-picker-wrapper {
   margin-top: 10px;
   position: relative;
+}
+
+.deadline-panel {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  width: 320px;
+}
+
+.deadline-panel-header {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+
+  .deadline-date-input,
+  .deadline-time-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #606266;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.2s;
+
+    &:hover {
+      border-color: var(--el-color-primary);
+    }
+  }
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  .nav-btn {
+    cursor: pointer;
+    color: #606266;
+    font-size: 13px;
+    padding: 2px 4px;
+    user-select: none;
+
+    &:hover {
+      color: var(--el-color-primary);
+    }
+  }
+
+  .calendar-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #303133;
+    min-width: 100px;
+    text-align: center;
+  }
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 8px;
+
+  span {
+    font-size: 12px;
+    color: #909399;
+    padding: 4px 0;
+  }
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+
+.calendar-day {
+  padding: 6px 0;
+  font-size: 13px;
+  color: #303133;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px auto;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f0f2f5;
+  }
+
+  &.other-month {
+    color: #c0c4cc;
+  }
+
+  &.is-today {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  &.is-selected {
+    background: var(--el-color-primary);
+    color: #fff;
+    font-weight: 500;
+
+    &:hover {
+      background: var(--el-color-primary);
+    }
+  }
+}
+
+.deadline-time-panel {
+  .time-columns {
+    display: flex;
+    gap: 12px;
+  }
+
+  .time-column {
+    flex: 1;
+
+    .time-column-title {
+      text-align: center;
+      font-size: 12px;
+      color: #909399;
+      margin-bottom: 8px;
+    }
+
+    .time-scroll {
+      height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ebeef5;
+      border-radius: 4px;
+    }
+
+    .time-cell {
+      padding: 6px 0;
+      text-align: center;
+      font-size: 13px;
+      color: #606266;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: #f0f2f5;
+      }
+
+      &.active {
+        color: var(--el-color-primary);
+        font-weight: 600;
+        background: #ecf5ff;
+      }
+    }
+  }
+}
+
+.deadline-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
 }
 
 .task-list-area {
