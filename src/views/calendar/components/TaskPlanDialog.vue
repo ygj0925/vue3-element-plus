@@ -79,6 +79,7 @@
           format="YYYY-MM-DD HH:mm"
           value-format="YYYY-MM-DD HH:mm"
           size="small"
+          :teleported="false"
         />
       </div>
     </div>
@@ -407,6 +408,7 @@ function handleConfirm() {
 
 .deadline-picker-wrapper {
   margin-top: 10px;
+  position: relative;
 }
 
 .task-list-area {
