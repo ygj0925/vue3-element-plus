@@ -13,26 +13,32 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: Layout,
-    redirect: '/home',
+    redirect: '/workbench',
     children: [
       {
-        path: 'home',
-        name: 'Home',
-        component: () => import('@/views/home/index.vue'),
-        meta: { title: '首页', icon: 'HomeFilled' },
+        path: 'workbench',
+        name: 'Workbench',
+        component: () => import('@/views/workbench/index.vue'),
+        meta: { title: '工作台' },
       },
       {
         path: 'calendar',
         name: 'Calendar',
         component: () => import('@/views/calendar/index.vue'),
-        meta: { title: '工作日历', icon: 'Calendar' },
+        meta: { title: '工作日历' },
+      },
+      {
+        path: 'home',
+        name: 'Home',
+        component: () => import('@/views/home/index.vue'),
+        meta: { title: '首页' },
       },
     ],
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    redirect: '/home',
+    redirect: '/workbench',
   },
 ]
 
@@ -48,7 +54,7 @@ router.beforeEach((to, _from, next) => {
   } else if (!token) {
     next('/login')
   } else {
-    document.title = (to.meta.title as string) || import.meta.env.VITE_APP_TITLE
+    document.title = (to.meta.title as string) || '不落分数智管理系统'
     next()
   }
 })

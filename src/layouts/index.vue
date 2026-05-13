@@ -1,42 +1,33 @@
 <template>
   <el-container class="layout">
-    <el-aside :width="isCollapse ? '64px' : '210px'" class="layout-aside">
-      <div class="logo">
-        <h1 v-show="!isCollapse">Vue3 Admin</h1>
-        <h1 v-show="isCollapse">V3</h1>
-      </div>
-      <el-menu
-        :default-active="route.path"
-        :collapse="isCollapse"
-        router
-        background-color="#001529"
-        text-color="#ffffffa6"
-        active-text-color="#ffffff"
-      >
-        <el-menu-item index="/home">
-          <el-icon><HomeFilled /></el-icon>
-          <template #title>首页</template>
-        </el-menu-item>
-        <el-menu-item index="/calendar">
-          <el-icon><Calendar /></el-icon>
-          <template #title>工作日历</template>
-        </el-menu-item>
-      </el-menu>
-    </el-aside>
-
-    <el-container>
-      <el-header class="layout-header">
-        <div class="header-left">
-          <el-icon class="collapse-btn" @click="appStore.toggleCollapse">
-            <Fold v-if="!isCollapse" />
-            <Expand v-else />
-          </el-icon>
+    <el-header class="layout-top-header">
+      <div class="header-left">
+        <div class="logo">
+          <img src="" alt="" class="logo-icon" />
+          <span class="logo-text">不落分数智管理系统</span>
         </div>
-        <div class="header-right">
+        <nav class="top-nav">
+          <a
+            v-for="nav in topNavs"
+            :key="nav.path"
+            :class="['nav-item', { active: isNavActive(nav.path) }]"
+            @click="router.push(nav.path)"
+          >
+            {{ nav.title }}
+            <span v-if="nav.badge" class="nav-badge">{{ nav.badge }}</span>
+          </a>
+        </nav>
+      </div>
+      <div class="header-right">
+        <el-icon class="header-icon"><Connection /></el-icon>
+        <el-icon class="header-icon"><Message /></el-icon>
+        <el-icon class="header-icon"><Bell /></el-icon>
+        <div class="user-area">
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              <el-icon><UserFilled /></el-icon>
-              <span>管理员</span>
+              <el-avatar :size="32" class="user-avatar">{{ userName.slice(0, 1) }}</el-avatar>
+              <span class="user-name">{{ userName }}</span>
+              <el-icon><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -45,7 +36,33 @@
             </template>
           </el-dropdown>
         </div>
-      </el-header>
+      </div>
+    </el-header>
+
+    <el-container class="layout-body">
+      <el-aside width="140px" class="layout-aside">
+        <el-menu
+          :default-active="route.path"
+          router
+          class="side-menu"
+        >
+          <el-menu-item index="/workbench">
+            <span>工作台</span>
+          </el-menu-item>
+          <el-menu-item index="/okr">
+            <span>OKR</span>
+          </el-menu-item>
+          <el-menu-item index="/project">
+            <span>项目</span>
+          </el-menu-item>
+          <el-menu-item index="/statistics">
+            <span>统计</span>
+          </el-menu-item>
+          <el-menu-item index="/summary">
+            <span>总结</span>
+          </el-menu-item>
+        </el-menu>
+      </el-aside>
 
       <el-main class="layout-main">
         <router-view />
@@ -57,16 +74,25 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { HomeFilled, Calendar, Fold, Expand, UserFilled } from '@element-plus/icons-vue'
-import { useAppStore } from '@/stores/app'
+import { Connection, Message, Bell, ArrowDown } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
-const appStore = useAppStore()
 const userStore = useUserStore()
 
-const isCollapse = computed(() => appStore.isCollapse)
+const userName = computed(() => '屹起会')
+
+const topNavs = [
+  { path: '/workbench', title: '工作台', badge: '看利润' },
+  { path: '/market', title: '市场大盘', badge: '' },
+  { path: '/competition', title: '竞争分析', badge: '' },
+  { path: '/tasks', title: '任务', badge: '' },
+]
+
+function isNavActive(path: string) {
+  return route.path.startsWith(path)
+}
 
 function handleCommand(command: string) {
   if (command === 'logout') {
@@ -79,61 +105,169 @@ function handleCommand(command: string) {
 <style scoped lang="scss">
 .layout {
   height: 100vh;
+  flex-direction: column;
 }
 
-.layout-aside {
-  background-color: #001529;
-  transition: width 0.3s;
-  overflow: hidden;
-
-  .logo {
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-
-    h1 {
-      margin: 0;
-      font-size: 18px;
-      white-space: nowrap;
-    }
-  }
-
-  :deep(.el-menu) {
-    border-right: none;
-  }
-}
-
-.layout-header {
+.layout-top-header {
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #eee;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
 
-  .collapse-btn {
-    font-size: 20px;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .logo-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+  }
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+
+  .nav-item {
+    position: relative;
+    font-size: 15px;
+    color: #333;
     cursor: pointer;
+    padding: 4px 0;
+    text-decoration: none;
+    transition: color 0.2s;
 
     &:hover {
       color: var(--el-color-primary);
     }
-  }
 
+    &.active {
+      color: var(--el-color-primary);
+      font-weight: 500;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -16px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--el-color-primary);
+      }
+    }
+
+    .nav-badge {
+      position: absolute;
+      top: -8px;
+      right: -30px;
+      background: #ff4d4f;
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-icon {
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--el-color-primary);
+  }
+}
+
+.user-area {
   .user-info {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     cursor: pointer;
+  }
 
-    &:hover {
-      color: var(--el-color-primary);
+  .user-avatar {
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 14px;
+  }
+
+  .user-name {
+    font-size: 14px;
+    color: #333;
+  }
+}
+
+.layout-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.layout-aside {
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  overflow-y: auto;
+
+  .side-menu {
+    border-right: none;
+    padding-top: 8px;
+
+    :deep(.el-menu-item) {
+      height: 44px;
+      line-height: 44px;
+      margin: 4px 8px;
+      border-radius: 6px;
+      padding-left: 24px !important;
+      font-size: 14px;
+      color: #333;
+
+      &:hover {
+        background: #f0f7ff;
+        color: var(--el-color-primary);
+      }
+
+      &.is-active {
+        background: #e8f4ff;
+        color: var(--el-color-primary);
+        font-weight: 500;
+      }
     }
   }
 }
 
 .layout-main {
-  background-color: #f5f5f5;
+  background: #f0f5ff;
+  overflow-y: auto;
+  padding: 24px;
 }
 </style>
