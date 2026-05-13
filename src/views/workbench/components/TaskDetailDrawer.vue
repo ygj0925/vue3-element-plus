@@ -54,59 +54,80 @@
           />
         </div>
 
-        <!-- 负责人和协作人 -->
-        <div class="info-row">
-          <el-avatar :size="28" class="info-avatar">{{ localTask.assignee[0] }}</el-avatar>
-          <span class="info-name">{{ localTask.assignee }}</span>
+        <!-- 信息标签行1：负责人 + 协作人 + 时间 -->
+        <div class="detail-pills-row">
+          <span class="detail-pill assignee-pill">
+            <el-avatar :size="20" class="pill-avatar">{{ localTask.assignee[0] }}</el-avatar>
+            {{ localTask.assignee }}
+          </span>
           <template v-for="c in localTask.collaborators" :key="c.id">
-            <el-avatar :size="28" class="info-avatar collab-avatar">{{ c.name[0] }}</el-avatar>
+            <span class="detail-pill collab-pill">
+              <el-avatar :size="20" class="pill-avatar pill-avatar-collab">{{ c.name[0] }}</el-avatar>
+            </span>
           </template>
-          <el-button size="small" round class="add-collab-btn">
+          <span class="detail-pill action-pill" @click="() => {}">
             <el-icon><Plus /></el-icon>
             参与协作
-          </el-button>
+          </span>
+          <span class="detail-pill time-pill">
+            <el-icon><Clock /></el-icon>
+            <span class="time-click" @click="openPicker('start')">{{ localTask.startTime ? formatTimeDisplay(localTask.startTime) : '开始时间' }}</span>
+            <span class="time-dash">-</span>
+            <span class="time-click" @click="openPicker('end')">{{ localTask.deadline ? formatTimeDisplay(localTask.deadline) : '截止时间' }}</span>
+          </span>
         </div>
 
-        <!-- 时间 -->
-        <div class="info-row">
-          <el-icon class="info-icon"><Calendar /></el-icon>
-          <div class="time-edit">
-            <el-date-picker
-              v-model="localTask.startTime"
-              type="datetime"
-              placeholder="开始时间"
-              format="YYYY年MM月DD日 HH:mm"
-              value-format="YYYY-MM-DD HH:mm"
-              size="small"
-              style="width: 200px"
-            />
-            <span class="time-sep">-</span>
-            <el-date-picker
-              v-model="localTask.deadline"
-              type="datetime"
-              placeholder="截止时间"
-              format="YYYY年MM月DD日 HH:mm"
-              value-format="YYYY-MM-DD HH:mm"
-              size="small"
-              style="width: 200px"
-            />
+        <!-- 时间选择面板 -->
+        <div v-if="dpVisible" class="datetime-panel-wrap">
+          <div class="datetime-panel">
+            <div class="dp-header">
+              <span :class="['dp-tab-btn', { active: dpMode === 'date' }]" @click="dpMode = 'date'">
+                {{ dpHasDate ? `${dpYear}-${dpPad(dpMonth)}-${dpPad(dpDay)}` : '选择日期' }}
+              </span>
+              <span :class="['dp-tab-btn', { active: dpMode === 'time' }]" @click="dpMode = 'time'">
+                {{ dpHasDate ? `${dpPad(dpHour)}:${dpPad(dpMinute)}` : '选择时间' }}
+              </span>
+            </div>
+            <template v-if="dpMode === 'date'">
+              <div class="dp-nav">
+                <span class="dp-nav-btn" @click="dpViewYear--">&laquo;</span>
+                <span class="dp-nav-btn" @click="dpChangeMonth(-1)">&lsaquo;</span>
+                <span class="dp-nav-title">{{ dpViewYear }}年 {{ dpViewMonth }}月</span>
+                <span class="dp-nav-btn" @click="dpChangeMonth(1)">&rsaquo;</span>
+                <span class="dp-nav-btn" @click="dpViewYear++">&raquo;</span>
+              </div>
+              <div class="dp-weekdays"><span v-for="w in dpWeeks" :key="w">{{ w }}</span></div>
+              <div class="dp-days">
+                <span v-for="(d, i) in dpCalDays" :key="i" :class="['dp-day', { 'other-month': !d.current, 'is-today': d.isToday, 'is-selected': d.isSelected }]" @click="dpPickDate(d)">{{ d.day }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="dp-time-cols">
+                <div class="dp-time-col"><div class="dp-time-col-title">时</div><div class="dp-time-scroll"><div v-for="h in 24" :key="h-1" :class="['dp-time-cell', { active: dpHour === h-1 }]" @click="dpHour = h-1">{{ dpPad(h-1) }}</div></div></div>
+                <div class="dp-time-col"><div class="dp-time-col-title">分</div><div class="dp-time-scroll"><div v-for="m in 60" :key="m-1" :class="['dp-time-cell', { active: dpMinute === m-1 }]" @click="dpMinute = m-1">{{ dpPad(m-1) }}</div></div></div>
+              </div>
+            </template>
+            <div class="dp-footer">
+              <el-button link type="primary" @click="dpSetNow">此刻</el-button>
+              <el-button type="primary" size="small" @click="dpConfirm">确定</el-button>
+            </div>
           </div>
         </div>
 
-        <!-- 设置按钮组 -->
-        <div class="settings-row">
-          <el-button size="small" round @click="reminderVisible = true">
+        <!-- 信息标签行2：提醒 + 重复 + 优先级 + 标签 -->
+        <div class="detail-pills-row">
+          <span class="detail-pill action-pill" @click="reminderVisible = true">
             <el-icon><Bell /></el-icon>
             {{ localTask.reminder?.label || '设置提醒' }}
-          </el-button>
-          <el-button size="small" round @click="recurrenceVisible = true">
+          </span>
+          <span class="detail-pill action-pill" @click="recurrenceVisible = true">
             <el-icon><RefreshRight /></el-icon>
             {{ localTask.recurrence || '设置重复' }}
-          </el-button>
+          </span>
           <el-dropdown trigger="click" @command="handlePriorityChange">
-            <el-button size="small" round>
+            <span class="detail-pill action-pill">
               ||| {{ priorityLabel }}
-            </el-button>
+            </span>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="high">紧急</el-dropdown-item>
@@ -115,10 +136,10 @@
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-button size="small" round @click="addTagVisible = true">
+          <span class="detail-pill action-pill" @click="addTagVisible = true">
             <el-icon><Plus /></el-icon>
             添加标签
-          </el-button>
+          </span>
         </div>
 
         <!-- 标签显示 -->
@@ -264,7 +285,7 @@
 import { ref, computed, watch } from 'vue'
 import {
   CircleCheck, Switch, Star, StarFilled, MoreFilled, Close,
-  Calendar, Bell, RefreshRight, Plus, ArrowDown,
+  Calendar, Bell, RefreshRight, Plus, ArrowDown, Clock,
   EditPen, Picture, Link, Paperclip
 } from '@element-plus/icons-vue'
 import type { WorkTask } from '../types'
@@ -301,6 +322,101 @@ const reminderType = ref('before_start')
 const reminderValue = ref(1)
 const reminderUnit = ref('分钟')
 const recurrenceValue = ref('')
+
+const dpVisible = ref(false)
+const dpMode = ref<'date' | 'time'>('date')
+const dpTarget = ref<'start' | 'end'>('start')
+const dpHasDate = ref(false)
+const dpYear = ref(new Date().getFullYear())
+const dpMonth = ref(new Date().getMonth() + 1)
+const dpDay = ref(new Date().getDate())
+const dpHour = ref(new Date().getHours())
+const dpMinute = ref(new Date().getMinutes())
+const dpViewYear = ref(new Date().getFullYear())
+const dpViewMonth = ref(new Date().getMonth() + 1)
+const dpWeeks = ['日', '一', '二', '三', '四', '五', '六']
+
+function dpPad(n: number) { return String(n).padStart(2, '0') }
+
+const dpCalDays = computed(() => {
+  const y = dpViewYear.value, m = dpViewMonth.value
+  const firstDay = new Date(y, m - 1, 1).getDay()
+  const dim = new Date(y, m, 0).getDate()
+  const dip = new Date(y, m - 1, 0).getDate()
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${dpPad(today.getMonth() + 1)}-${dpPad(today.getDate())}`
+  const selStr = dpHasDate.value ? `${dpYear.value}-${dpPad(dpMonth.value)}-${dpPad(dpDay.value)}` : ''
+  const cells: { day: number; current: boolean; isToday: boolean; isSelected: boolean; year: number; month: number }[] = []
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = dip - i, pm = m - 1 <= 0 ? 12 : m - 1, py = m - 1 <= 0 ? y - 1 : y
+    const ds = `${py}-${dpPad(pm)}-${dpPad(d)}`
+    cells.push({ day: d, current: false, isToday: ds === todayStr, isSelected: ds === selStr, year: py, month: pm })
+  }
+  for (let d = 1; d <= dim; d++) {
+    const ds = `${y}-${dpPad(m)}-${dpPad(d)}`
+    cells.push({ day: d, current: true, isToday: ds === todayStr, isSelected: ds === selStr, year: y, month: m })
+  }
+  const rem = 42 - cells.length
+  for (let d = 1; d <= rem; d++) {
+    const nm = m + 1 > 12 ? 1 : m + 1, ny = m + 1 > 12 ? y + 1 : y
+    const ds = `${ny}-${dpPad(nm)}-${dpPad(d)}`
+    cells.push({ day: d, current: false, isToday: ds === todayStr, isSelected: ds === selStr, year: ny, month: nm })
+  }
+  return cells
+})
+
+function openPicker(target: 'start' | 'end') {
+  dpTarget.value = target
+  dpMode.value = 'date'
+  const timeStr = target === 'start' ? localTask.value.startTime : localTask.value.deadline
+  if (timeStr) {
+    const [datePart, timePart] = timeStr.split(' ')
+    const [y, m, d] = datePart.split('-').map(Number)
+    const [h, min] = timePart.split(':').map(Number)
+    dpYear.value = y; dpMonth.value = m; dpDay.value = d
+    dpHour.value = h; dpMinute.value = min
+    dpViewYear.value = y; dpViewMonth.value = m
+    dpHasDate.value = true
+  } else {
+    const now = new Date()
+    dpYear.value = now.getFullYear(); dpMonth.value = now.getMonth() + 1; dpDay.value = now.getDate()
+    dpHour.value = now.getHours(); dpMinute.value = now.getMinutes()
+    dpViewYear.value = now.getFullYear(); dpViewMonth.value = now.getMonth() + 1
+    dpHasDate.value = false
+  }
+  dpVisible.value = true
+}
+
+function dpPickDate(d: { day: number; year: number; month: number }) {
+  dpYear.value = d.year; dpMonth.value = d.month; dpDay.value = d.day; dpHasDate.value = true
+}
+
+function dpChangeMonth(delta: number) {
+  let m = dpViewMonth.value + delta, y = dpViewYear.value
+  if (m > 12) { m = 1; y++ } else if (m < 1) { m = 12; y-- }
+  dpViewMonth.value = m; dpViewYear.value = y
+}
+
+function dpSetNow() {
+  const now = new Date()
+  dpYear.value = now.getFullYear(); dpMonth.value = now.getMonth() + 1; dpDay.value = now.getDate()
+  dpHour.value = now.getHours(); dpMinute.value = now.getMinutes()
+  dpViewYear.value = now.getFullYear(); dpViewMonth.value = now.getMonth() + 1
+  dpHasDate.value = true
+}
+
+function dpConfirm() {
+  const val = `${dpYear.value}-${dpPad(dpMonth.value)}-${dpPad(dpDay.value)} ${dpPad(dpHour.value)}:${dpPad(dpMinute.value)}`
+  if (dpTarget.value === 'start') { localTask.value.startTime = val } else { localTask.value.deadline = val }
+  dpVisible.value = false
+}
+
+function formatTimeDisplay(time: string) {
+  if (!time) return ''
+  const [date, hm] = time.split(' ')
+  const [y, m, d] = date.split('-')
+  return `${y}年${m}月${d}日 ${hm}`
+}
 
 watch(() => props.modelValue, (val) => {
   if (val && props.task) {
@@ -464,57 +580,228 @@ function handleClose() {
   }
 }
 
-.info-row {
+.detail-pills-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.info-avatar {
+.detail-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid #e4e7ed;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #606266;
+  background: #fff;
+  white-space: nowrap;
+  height: 30px;
+  box-sizing: border-box;
+}
+
+.assignee-pill {
+  padding-left: 4px;
+}
+
+.collab-pill {
+  padding: 3px;
+}
+
+.pill-avatar {
   background: #d4a437;
   color: #fff;
-  font-size: 12px;
+  font-size: 10px;
   flex-shrink: 0;
 
-  &.collab-avatar {
+  &.pill-avatar-collab {
     background: #666;
   }
 }
 
-.info-name {
-  font-size: 14px;
-  color: #333;
-  margin-right: 4px;
+.action-pill {
+  cursor: pointer;
+  transition: all 0.2s;
+
+  .el-icon {
+    font-size: 14px;
+    color: #909399;
+  }
+
+  &:hover {
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+
+    .el-icon {
+      color: var(--el-color-primary);
+    }
+  }
 }
 
-.info-icon {
-  font-size: 16px;
-  color: #bbb;
+.time-pill {
+  .el-icon {
+    font-size: 14px;
+    color: #909399;
+  }
 }
 
-.add-collab-btn {
-  font-size: 12px;
+.time-click {
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--el-color-primary);
+  }
+}
+
+.time-dash {
+  color: #c0c4cc;
+  margin: 0 2px;
+}
+
+.datetime-panel-wrap {
+  padding: 0 0 0 24px;
+  margin-bottom: 12px;
+}
+
+.datetime-panel {
+  width: 320px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.dp-header {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dp-tab-btn {
+  flex: 1;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 13px;
   color: #999;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  transition: all 0.2s;
+
+  &.active {
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+  }
+
+  &:hover {
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+  }
 }
 
-.time-edit {
+.dp-nav {
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.time-sep {
-  color: #ccc;
+.dp-nav-btn {
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &:hover { background: #f5f5f5; color: #333; }
 }
 
-.settings-row {
+.dp-nav-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  min-width: 100px;
+  text-align: center;
+}
+
+.dp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 8px;
+
+  span { text-align: center; font-size: 12px; color: #999; padding: 4px 0; }
+}
+
+.dp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 8px 8px;
+}
+
+.dp-day {
+  text-align: center;
+  padding: 6px 0;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #333;
+
+  &:hover { background: #f0f5ff; }
+  &.other-month { color: #ccc; }
+  &.is-today { color: var(--el-color-primary); font-weight: 600; }
+  &.is-selected { background: var(--el-color-primary); color: #fff; font-weight: 500; &:hover { background: var(--el-color-primary); } }
+}
+
+.dp-time-cols {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+  height: 220px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.dp-time-col {
+  flex: 1;
+  &:first-child { border-right: 1px solid #f0f0f0; }
+}
+
+.dp-time-col-title {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  padding: 8px 0 4px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.dp-time-scroll {
+  height: 180px;
+  overflow-y: auto;
+}
+
+.dp-time-cell {
+  text-align: center;
+  padding: 4px 0;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+
+  &:hover { background: #f0f5ff; }
+  &.active { color: var(--el-color-primary); font-weight: 600; background: #ecf5ff; }
+}
+
+.dp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
 }
 
 .tags-display {

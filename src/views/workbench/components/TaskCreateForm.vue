@@ -47,54 +47,73 @@
             <el-icon><Calendar /></el-icon>
           </div>
           <span class="field-label">时间</span>
-          <div class="field-content time-content">
-            <div class="time-display" @click="showTimePicker = !showTimePicker">
-              <template v-if="form.startTime || form.deadline">
-                {{ formatTimeDisplay(form.startTime) }} - {{ formatTimeDisplay(form.deadline) }}
-                <span v-if="form.deadline" class="deadline-mark">截止</span>
-              </template>
-              <template v-else>
-                <span class="placeholder-text">开始时间 - 截止时间</span>
-              </template>
-            </div>
+          <div class="field-content">
+            <span class="time-text" :class="{ placeholder: !form.startTime, active: pickerVisible && pickerTarget === 'start' }" @click="openPicker('start')">
+              {{ form.startTime ? formatTimeDisplay(form.startTime) : '开始时间' }}
+            </span>
+            <span class="time-sep">-</span>
+            <span class="time-text" :class="{ placeholder: !form.deadline, active: pickerVisible && pickerTarget === 'end' }" @click="openPicker('end')">
+              {{ form.deadline ? formatTimeDisplay(form.deadline) : '截止时间' }}
+            </span>
             <span class="field-divider">|</span>
             <el-tooltip content="设置重复" placement="top">
-              <el-icon class="field-action" @click="recurrenceVisible = true"><RefreshRight /></el-icon>
+              <el-icon class="field-action" @click.stop="recurrenceVisible = true"><RefreshRight /></el-icon>
             </el-tooltip>
             <el-tooltip content="设置提醒" placement="top">
-              <el-icon class="field-action" @click="reminderVisible = true"><Bell /></el-icon>
+              <el-icon class="field-action" @click.stop="reminderVisible = true"><Bell /></el-icon>
             </el-tooltip>
           </div>
         </div>
-
-        <!-- 时间选择面板 -->
-        <div v-if="showTimePicker" class="time-picker-panel">
-          <div class="time-picker-row">
-            <span class="time-picker-label">开始时间</span>
-            <el-date-picker
-              v-model="form.startTime"
-              type="datetime"
-              placeholder="选择开始时间"
-              format="YYYY年MM月DD日 HH:mm"
-              value-format="YYYY-MM-DD HH:mm"
-              size="small"
-              style="width: 240px"
-            />
-          </div>
-          <div class="time-picker-row">
-            <span class="time-picker-label">截止时间</span>
-            <el-date-picker
-              v-model="form.deadline"
-              type="datetime"
-              placeholder="选择截止时间"
-              format="YYYY年MM月DD日 HH:mm"
-              value-format="YYYY-MM-DD HH:mm"
-              size="small"
-              style="width: 240px"
-            />
-          </div>
-          <div class="time-picker-actions">
-            <el-button size="small" @click="showTimePicker = false">确定</el-button>
+        <div v-if="pickerVisible" class="datetime-panel-wrap">
+          <div class="datetime-panel">
+            <div class="dp-header">
+              <span :class="['dp-tab-btn', { active: pickerMode === 'date' }]" @click="pickerMode = 'date'">
+                {{ pickerSelectedDate ? `${pickerYear}-${pad(pickerMonth)}-${pad(pickerDay)}` : '选择日期' }}
+              </span>
+              <span :class="['dp-tab-btn', { active: pickerMode === 'time' }]" @click="pickerMode = 'time'">
+                {{ pickerSelectedDate ? `${pad(pickerHour)}:${pad(pickerMinute)}` : '选择时间' }}
+              </span>
+            </div>
+            <template v-if="pickerMode === 'date'">
+              <div class="dp-nav">
+                <span class="dp-nav-btn" @click="changeCalYear(-1)">&laquo;</span>
+                <span class="dp-nav-btn" @click="changeCalMonth(-1)">&lsaquo;</span>
+                <span class="dp-nav-title">{{ calViewYear }}年 {{ calViewMonth }}月</span>
+                <span class="dp-nav-btn" @click="changeCalMonth(1)">&rsaquo;</span>
+                <span class="dp-nav-btn" @click="changeCalYear(1)">&raquo;</span>
+              </div>
+              <div class="dp-weekdays">
+                <span v-for="w in calWeekLabels" :key="w">{{ w }}</span>
+              </div>
+              <div class="dp-days">
+                <span
+                  v-for="(d, i) in calDays"
+                  :key="i"
+                  :class="['dp-day', { 'other-month': !d.current, 'is-today': d.isToday, 'is-selected': d.isSelected }]"
+                  @click="pickDate(d)"
+                >{{ d.day }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="dp-time-cols">
+                <div class="dp-time-col">
+                  <div class="dp-time-col-title">时</div>
+                  <div class="dp-time-scroll">
+                    <div v-for="h in 24" :key="h - 1" :class="['dp-time-cell', { active: pickerHour === h - 1 }]" @click="pickerHour = h - 1">{{ pad(h - 1) }}</div>
+                  </div>
+                </div>
+                <div class="dp-time-col">
+                  <div class="dp-time-col-title">分</div>
+                  <div class="dp-time-scroll">
+                    <div v-for="m in 60" :key="m - 1" :class="['dp-time-cell', { active: pickerMinute === m - 1 }]" @click="pickerMinute = m - 1">{{ pad(m - 1) }}</div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div class="dp-footer">
+              <el-button link type="primary" @click="setPickerNow">此刻</el-button>
+              <el-button type="primary" size="small" @click="confirmPicker">确定</el-button>
+            </div>
           </div>
         </div>
 
@@ -229,7 +248,6 @@ const emit = defineEmits<{
 }>()
 
 const nameInputRef = ref()
-const showTimePicker = ref(false)
 const showMore = ref(false)
 const addTagVisible = ref(false)
 const newTag = ref('')
@@ -239,6 +257,128 @@ const reminderType = ref('before_start')
 const reminderValue = ref(1)
 const reminderUnit = ref('分钟')
 const recurrenceValue = ref('')
+
+const pickerVisible = ref(false)
+const pickerMode = ref<'date' | 'time'>('date')
+const pickerTarget = ref<'start' | 'end'>('start')
+const pickerSelectedDate = ref(false)
+const pickerYear = ref(new Date().getFullYear())
+const pickerMonth = ref(new Date().getMonth() + 1)
+const pickerDay = ref(new Date().getDate())
+const pickerHour = ref(new Date().getHours())
+const pickerMinute = ref(new Date().getMinutes())
+const calViewYear = ref(new Date().getFullYear())
+const calViewMonth = ref(new Date().getMonth() + 1)
+
+const calWeekLabels = ['日', '一', '二', '三', '四', '五', '六']
+
+const calDays = computed(() => {
+  const y = calViewYear.value
+  const m = calViewMonth.value
+  const firstDay = new Date(y, m - 1, 1).getDay()
+  const daysInMonth = new Date(y, m, 0).getDate()
+  const daysInPrev = new Date(y, m - 1, 0).getDate()
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
+  const selectedStr = pickerSelectedDate.value ? `${pickerYear.value}-${pad(pickerMonth.value)}-${pad(pickerDay.value)}` : ''
+  const cells: { day: number; current: boolean; isToday: boolean; isSelected: boolean; year: number; month: number }[] = []
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const d = daysInPrev - i
+    const pm = m - 1 <= 0 ? 12 : m - 1
+    const py = m - 1 <= 0 ? y - 1 : y
+    const ds = `${py}-${pad(pm)}-${pad(d)}`
+    cells.push({ day: d, current: false, isToday: ds === todayStr, isSelected: ds === selectedStr, year: py, month: pm })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${y}-${pad(m)}-${pad(d)}`
+    cells.push({ day: d, current: true, isToday: ds === todayStr, isSelected: ds === selectedStr, year: y, month: m })
+  }
+  const remaining = 42 - cells.length
+  for (let d = 1; d <= remaining; d++) {
+    const nm = m + 1 > 12 ? 1 : m + 1
+    const ny = m + 1 > 12 ? y + 1 : y
+    const ds = `${ny}-${pad(nm)}-${pad(d)}`
+    cells.push({ day: d, current: false, isToday: ds === todayStr, isSelected: ds === selectedStr, year: ny, month: nm })
+  }
+  return cells
+})
+
+function pad(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function openPicker(target: 'start' | 'end') {
+  pickerTarget.value = target
+  pickerMode.value = 'date'
+  const timeStr = target === 'start' ? form.value.startTime : form.value.deadline
+  if (timeStr) {
+    const [datePart, timePart] = timeStr.split(' ')
+    const [y, m, d] = datePart.split('-').map(Number)
+    const [h, min] = timePart.split(':').map(Number)
+    pickerYear.value = y
+    pickerMonth.value = m
+    pickerDay.value = d
+    pickerHour.value = h
+    pickerMinute.value = min
+    calViewYear.value = y
+    calViewMonth.value = m
+    pickerSelectedDate.value = true
+  } else {
+    const now = new Date()
+    pickerYear.value = now.getFullYear()
+    pickerMonth.value = now.getMonth() + 1
+    pickerDay.value = now.getDate()
+    pickerHour.value = now.getHours()
+    pickerMinute.value = now.getMinutes()
+    calViewYear.value = now.getFullYear()
+    calViewMonth.value = now.getMonth() + 1
+    pickerSelectedDate.value = false
+  }
+  pickerVisible.value = true
+}
+
+function pickDate(d: { day: number; year: number; month: number }) {
+  pickerYear.value = d.year
+  pickerMonth.value = d.month
+  pickerDay.value = d.day
+  pickerSelectedDate.value = true
+}
+
+function changeCalYear(delta: number) {
+  calViewYear.value += delta
+}
+
+function changeCalMonth(delta: number) {
+  let m = calViewMonth.value + delta
+  let y = calViewYear.value
+  if (m > 12) { m = 1; y++ }
+  if (m < 1) { m = 12; y-- }
+  calViewMonth.value = m
+  calViewYear.value = y
+}
+
+function setPickerNow() {
+  const now = new Date()
+  pickerYear.value = now.getFullYear()
+  pickerMonth.value = now.getMonth() + 1
+  pickerDay.value = now.getDate()
+  pickerHour.value = now.getHours()
+  pickerMinute.value = now.getMinutes()
+  calViewYear.value = now.getFullYear()
+  calViewMonth.value = now.getMonth() + 1
+  pickerSelectedDate.value = true
+}
+
+function confirmPicker() {
+  const val = `${pickerYear.value}-${pad(pickerMonth.value)}-${pad(pickerDay.value)} ${pad(pickerHour.value)}:${pad(pickerMinute.value)}`
+  if (pickerTarget.value === 'start') {
+    form.value.startTime = val
+  } else {
+    form.value.deadline = val
+  }
+  pickerVisible.value = false
+}
 
 const form = ref({
   name: '',
@@ -480,29 +620,210 @@ onMounted(() => {
   color: #333;
 }
 
-.time-content {
-  gap: 12px;
-}
-
-.time-display {
+.time-text {
   font-size: 13px;
   color: #333;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
 
   &:hover {
     color: var(--el-color-primary);
   }
 
-  .placeholder-text {
+  &.placeholder {
     color: #ccc;
   }
 
-  .deadline-mark {
-    color: #999;
-    font-size: 12px;
-    margin-left: 4px;
+  &.active {
+    color: var(--el-color-primary);
   }
+}
+
+.time-sep {
+  color: #ccc;
+  font-size: 13px;
+}
+
+.datetime-panel-wrap {
+  padding: 0 0 0 48px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.datetime-panel {
+  width: 320px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.dp-header {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dp-tab-btn {
+  flex: 1;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #999;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  transition: all 0.2s;
+
+  &.active {
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+  }
+
+  &:hover {
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary);
+  }
+}
+
+.dp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.dp-nav-btn {
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+
+  &:hover {
+    background: #f5f5f5;
+    color: #333;
+  }
+}
+
+.dp-nav-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  min-width: 100px;
+  text-align: center;
+}
+
+.dp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 8px;
+
+  span {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    padding: 4px 0;
+  }
+}
+
+.dp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 8px 8px;
+}
+
+.dp-day {
+  text-align: center;
+  padding: 6px 0;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #333;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f0f5ff;
+  }
+
+  &.other-month {
+    color: #ccc;
+  }
+
+  &.is-today {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+
+  &.is-selected {
+    background: var(--el-color-primary);
+    color: #fff;
+    font-weight: 500;
+
+    &:hover {
+      background: var(--el-color-primary);
+    }
+  }
+}
+
+.dp-time-cols {
+  display: flex;
+  height: 220px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.dp-time-col {
+  flex: 1;
+
+  &:first-child {
+    border-right: 1px solid #f0f0f0;
+  }
+}
+
+.dp-time-col-title {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  padding: 8px 0 4px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.dp-time-scroll {
+  height: 180px;
+  overflow-y: auto;
+}
+
+.dp-time-cell {
+  text-align: center;
+  padding: 4px 0;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f0f5ff;
+  }
+
+  &.active {
+    color: var(--el-color-primary);
+    font-weight: 600;
+    background: #ecf5ff;
+  }
+}
+
+.dp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
 }
 
 .field-divider {
@@ -520,29 +841,6 @@ onMounted(() => {
   &:hover {
     color: var(--el-color-primary);
   }
-}
-
-.time-picker-panel {
-  padding: 12px 0 12px 48px;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.time-picker-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.time-picker-label {
-  font-size: 13px;
-  color: #999;
-  min-width: 60px;
-}
-
-.time-picker-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .add-tag-btn {
