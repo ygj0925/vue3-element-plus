@@ -1,9 +1,19 @@
 <template>
   <div class="work-tasks-widget">
     <div class="task-list">
-      <div v-for="task in tasks" :key="task.id" class="task-row">
-        <el-checkbox :model-value="task.status === 'completed'" class="task-check" />
-        <span class="task-name">{{ task.name }}</span>
+      <div
+        v-for="task in tasks"
+        :key="task.id"
+        class="task-row"
+        @click="$emit('openTask', task)"
+      >
+        <el-checkbox
+          :model-value="task.status === 'completed'"
+          class="task-check"
+          @click.stop
+          @change="toggleTask(task)"
+        />
+        <span :class="['task-name', { completed: task.status === 'completed' }]">{{ task.name }}</span>
         <span :class="['task-priority', task.priority]">
           {{ priorityLabel(task.priority) }}
         </span>
@@ -18,8 +28,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { mockWorkTasks } from '../../mock'
+import type { WorkTask } from '../../types'
+
+defineEmits<{
+  openTask: [task: WorkTask]
+}>()
 
 const tasks = ref(mockWorkTasks)
+
+function toggleTask(task: WorkTask) {
+  task.status = task.status === 'completed' ? 'pending' : 'completed'
+}
 
 function priorityLabel(p: string) {
   const map: Record<string, string> = { high: '紧急', normal: '普通', low: '低' }
@@ -38,7 +57,10 @@ function priorityLabel(p: string) {
   gap: 10px;
   padding: 10px 0;
   border-bottom: 1px solid #f5f5f5;
+  cursor: pointer;
+  transition: background 0.2s;
 
+  &:hover { background: #f9f9f9; }
   &:last-child { border-bottom: none; }
 }
 
@@ -49,6 +71,11 @@ function priorityLabel(p: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  &.completed {
+    text-decoration: line-through;
+    color: #ccc;
+  }
 }
 
 .task-priority {

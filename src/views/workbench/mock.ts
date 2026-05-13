@@ -42,9 +42,33 @@ export const mockDepartmentAlign: DepartmentAlign[] = [
 ]
 
 export const mockWorkTasks: WorkTask[] = [
-  { id: 1, name: '完成Q2产品路线图', status: 'in_progress', priority: 'high', assignee: '屹起会', deadline: '2026-05-15' },
-  { id: 2, name: '用户调研报告', status: 'pending', priority: 'normal', assignee: '屹起会', deadline: '2026-05-20' },
-  { id: 3, name: '竞品分析文档', status: 'pending', priority: 'normal', assignee: '屹起会', deadline: '2026-05-18' },
+  {
+    id: 1, name: '完成Q2产品路线图', status: 'in_progress', taskType: 'todo', priority: 'high',
+    assignee: '余着', collaborators: [{ id: 1, name: '屹起会', avatar: '', department: '产品部' }],
+    startTime: '2026-05-01 09:00', deadline: '2026-05-15 19:00',
+    reminder: { type: 'before_start', label: '任务开始前 1 分钟' },
+    tags: [], description: '', visibility: 'all',
+    activities: [
+      { id: 1, user: '余着', action: '创建了任务', time: '2026-05-01 09:00' },
+    ],
+  },
+  {
+    id: 2, name: '用户调研报告', status: 'pending', taskType: 'todo', priority: 'normal',
+    assignee: '余着', collaborators: [],
+    startTime: '', deadline: '2026-05-20 19:00',
+    tags: [], description: '', visibility: 'all',
+    activities: [],
+  },
+  {
+    id: 3, name: 'okr', status: 'completed', taskType: 'kr', priority: 'normal',
+    assignee: '余着', collaborators: [{ id: 1, name: '屹起会', avatar: '', department: '产品部' }],
+    startTime: '', deadline: '2026-05-05 19:00',
+    reminder: { type: 'before_start', label: '任务开始前 1 分钟' },
+    tags: [], description: '', visibility: 'all',
+    activities: [
+      { id: 1, user: '余着', action: '修改了任务状态为「已完成」', time: '2026-05-13 15:13' },
+    ],
+  },
 ]
 
 export const mockOKRItems: OKRItem[] = [

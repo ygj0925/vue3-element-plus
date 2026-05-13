@@ -51,6 +51,7 @@ import { ref, computed } from 'vue'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { mockCalendarTasks } from '../../mock'
 import TaskCreateForm from '../TaskCreateForm.vue'
+import type { WorkTask } from '../../types'
 
 const viewMode = ref<'week' | 'month'>('week')
 const currentDate = ref(new Date())
@@ -117,8 +118,8 @@ function hasNoTasks(dateStr: string) {
   return getTasksForDate(dateStr).length === 0
 }
 
-function onCreateTask(task: { name: string }) {
-  tasks.value.push({ id: Date.now(), name: task.name, date: formatDate(currentDate.value), type: 'todo' })
+function onCreateTask(task: WorkTask) {
+  tasks.value.push({ id: task.id, name: task.name, date: formatDate(currentDate.value), type: 'todo' })
   showTaskCreate.value = false
 }
 </script>

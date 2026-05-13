@@ -27,7 +27,7 @@
             @move="(dir) => store.moveWidget(widget.id, dir)"
             @remove="store.removeWidget(widget.id)"
           >
-            <component :is="getWidgetComponent(widget.type)" :widget="widget" />
+            <component :is="getWidgetComponent(widget.type)" :widget="widget" @open-task="openTaskDetail" />
           </WidgetCard>
         </div>
         <div class="widget-col widget-col-right">
@@ -39,13 +39,13 @@
             @move="(dir) => store.moveWidget(widget.id, dir)"
             @remove="store.removeWidget(widget.id)"
           >
-            <component :is="getWidgetComponent(widget.type)" :widget="widget" />
+            <component :is="getWidgetComponent(widget.type)" :widget="widget" @open-task="openTaskDetail" />
           </WidgetCard>
         </div>
       </div>
     </template>
 
-    <TaskDetailDrawer v-model="taskDetailVisible" :task="selectedTask" />
+    <TaskDetailDrawer v-model="taskDetailVisible" :task="selectedTask" @update:task="onTaskUpdate" />
   </div>
 </template>
 
@@ -65,11 +65,12 @@ import InsightsWidget from './components/widgets/InsightsWidget.vue'
 import TaskOverviewWidget from './components/widgets/TaskOverviewWidget.vue'
 import MyProjectsWidget from './components/widgets/MyProjectsWidget.vue'
 import TaskOwnerWidget from './components/widgets/TaskOwnerWidget.vue'
+import type { WorkTask } from './types'
 
 const store = useWorkbenchStore()
 const showRoleSwitcher = ref(false)
 const taskDetailVisible = ref(false)
-const selectedTask = ref<any>(null)
+const selectedTask = ref<WorkTask | null>(null)
 
 const userName = computed(() => '屹起会')
 
@@ -99,6 +100,15 @@ const widgetMap: Record<string, any> = {
 
 function getWidgetComponent(type: string) {
   return widgetMap[type] || 'div'
+}
+
+function openTaskDetail(task: WorkTask) {
+  selectedTask.value = task
+  taskDetailVisible.value = true
+}
+
+function onTaskUpdate(task: WorkTask) {
+  selectedTask.value = task
 }
 </script>
 

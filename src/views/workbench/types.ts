@@ -38,13 +38,41 @@ export interface DepartmentAlign {
   children?: DepartmentAlign[]
 }
 
+export interface Collaborator {
+  id: number
+  name: string
+  avatar: string
+  department?: string
+}
+
+export interface Reminder {
+  type: string
+  label: string
+}
+
+export interface ActivityItem {
+  id: number
+  user: string
+  action: string
+  time: string
+}
+
 export interface WorkTask {
   id: number
   name: string
   status: 'pending' | 'in_progress' | 'completed'
+  taskType: 'todo' | 'kr' | 'project'
   priority: 'high' | 'normal' | 'low'
   assignee: string
+  collaborators: Collaborator[]
+  startTime: string
   deadline: string
+  reminder?: Reminder
+  recurrence?: string
+  tags: string[]
+  description: string
+  visibility: 'all' | 'private'
+  activities: ActivityItem[]
 }
 
 export interface OKRItem {
